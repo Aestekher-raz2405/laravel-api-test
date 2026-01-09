@@ -15,7 +15,9 @@ class PostController extends Controller
      */
     public function index()
     {
-        $posts = Post::with('user')->paginate(2);
+        $user = request()->user();
+
+        $posts = $user->posts()->with('user')->paginate(10);
         return PostResource::collection($posts);
     }
 
@@ -28,7 +30,7 @@ class PostController extends Controller
     //    $data = $request->only(['title', 'content']);
        $data = $request->validated();
 
-       $data['user_id'] = 2; // Simulating an authenticated user with ID 2
+       $data['user_id'] = $request->user()->id; // Simulating an authenticated user with ID 2
        // Here you would typically save the post to the database, e.g.:
        $post = Post::create($data);
 
@@ -49,20 +51,29 @@ class PostController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Post $post)
     {
-        $data = $request->validate([
+        $user = request()->user();
+        if($post->user_id !== $user->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        else {
+             $data = $request->validate([
             'title' => 'required|string|min:2',
             'content' => 'required|string',
-        ]);
-        return response()->json([
-            'message' => 'Post updated successfully',
-            'data' => [
-                'id' => $id,
-                'title' => $data['title'],
-                'content' => $data['content'],
-            ],
-        ]);
+            ]);
+            $post->update(['title'=>$data['title'], 'content'=>$data['content']]);
+            return response()->json([
+                'message' => 'Post updated successfully',
+                'data' => [
+                    'id' => $post->id,
+                    'title' => $data['title'],
+                    'content' => $data['content'],
+                ],
+            ]);
+
+        }
+
     }
 
     /**
