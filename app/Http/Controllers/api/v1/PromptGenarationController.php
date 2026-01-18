@@ -27,10 +27,44 @@ class PromptGenarationController extends Controller
     * @response 200 {"data": [{"id": 1, "image_path": "uploads/images/example.jpg", "generated_prompt": "A beautiful landscape", "created_at": "2026-01-17T10:00:00Z"}], "links": {}, "meta": {}}
     * @unauthenticated
     */
-   public function index()
+   public function index(Request $request)
    {
      $user = request()->user();
-     $imageGenerations = $user->imageGeneration()->latest()->paginate(10);
+     $query = $user->imageGeneration();
+     // Apply search filter
+     if(request()->has('search') && !empty(request()->get('search')))
+     {
+        $search = request()->get('search');
+        $query->where('generated_prompt', 'like', '%'.$search.'%');
+
+     }
+
+     //Applying sort
+     $allowedSortFields =['created_at','generated_prompt','orginal_filename','file_size'];
+     $sortField =['created_at'];
+     $sortDirection ='desc';
+
+     if($request->has('sort') && !empty($request->sort))
+        {
+            $sort = $request->sort;
+            if(str_starts_with($sort,'-')){
+                $sortField = substr($sort,1);
+                $sortDirection ='desc';
+
+            }
+            else{
+                $sortField = $sort;
+                $sortDirection ='asc';
+            }
+            if(!in_array($sortField,$allowedSortFields)){
+                $sortField ='created_at';
+                $sortDirection ='desc';
+            }
+            $query->orderBy($sortField,$sortDirection);
+        }
+
+
+     $imageGenerations = $query->paginate(request()->get('per_page', 10));
      return PromptGenerationResource::collection($imageGenerations);
 
    }
